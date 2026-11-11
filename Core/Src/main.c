@@ -1,4 +1,5 @@
 /* USER CODE BEGIN Header */
+// STM32 Dino automation - ENGS 251 project
 /**
   ******************************************************************************
   * @file           : main.c
