@@ -40,4 +40,24 @@ To develop an autonomous system using the STM32F411CEU6 that detects obstacles i
 - STM32 HAL Library
 - C programming language
 
+## Progress
+
+| Part | What | Peripherals | Status |
+|---|---|---|---|
+| 1 | LED and button | GPIO, EXTI | Done |
+| 2 | Jump and duck servos | TIM4 PWM | Done (need tuning on keyboard) |
+| 3 | Reading photoresistors | ADC, DMA, TIM2 | Next |
+| 4 | Detecting obstacles and jumping | - | Planned |
+| 5 | Speed measuring and timed jump | TIM5 | Planned |
+| 6 | Communication with PC | USART2 | Planned |
+| 7 | Display | SPI1 | Planned |
+| 8 | Saving calibration and best score | I2C1 | Planned |
+| 9 | Connection with guitar board | USART1 | Planned |
+
+**Part 1:** Onboard LED (PC13) is blinking slow in Auto mode and fast in Guitar mode. KEY button (PA0) changes the mode with interrupt, presses closer than 200 ms are ignored because of bouncing.
+
+**Part 2:** Two servos with PWM from TIM4, PB8 for jump and PB9 for duck. Prescaler 99 and period 19999 gives 50 Hz, so CCR value is the pulse width in us. Servo goes to press position and after 200 ms (jump) or 300 ms (duck) comes back. I have only one servo now, so I checked both channels by moving the wire.
+
+Note: board must be powered from USB-C, from ST-Link only the 5V pin has no power and servos don't move.
+
 **Course:** ENGS 251 – Embedded Systems Project
