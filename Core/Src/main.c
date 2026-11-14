@@ -22,7 +22,9 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include <stdio.h>
+#include "ssd1306.h"
+#include "ssd1306_fonts.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -41,34 +43,44 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
+I2C_HandleTypeDef hi2c1;
+
 TIM_HandleTypeDef htim4;
 
 /* USER CODE BEGIN PV */
 volatile uint8_t mode = 0; // 0 = Auto, 1 = Guitar
+uint8_t oldMode = 0;
 uint32_t lastPress = 0;
 uint32_t lastBlink = 0;
 
 // Jump Servo PB8
 uint16_t jumpRest = 1500;
-uint16_t jumpPress = 1700;
+uint16_t jumpPress = 1800;
 uint8_t jumpPressed = 0;
 uint32_t jumpTime = 0;
 
 // Duck Servo PB9
 uint16_t duckRest = 1500;
-uint16_t duckPress = 1700;
+uint16_t duckPress = 1800;
 uint8_t duckPressed = 0;
 uint32_t duckTime = 0;
 
 // Test
 uint32_t lastTest = 0;
 uint8_t nextServo = 1;
+
+// Screen
+uint16_t jumps = 0;
+uint16_t ducks = 0;
+uint8_t updateScreen = 1;
+char text[20];
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_TIM4_Init(void);
+static void MX_I2C1_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -108,12 +120,15 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_TIM4_Init();
+  MX_I2C1_Init();
   /* USER CODE BEGIN 2 */
 
   HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_3); // jump servo
   HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_4); // duck servo
   TIM4->CCR3 = jumpRest;
   TIM4->CCR4 = duckRest;
+
+  ssd1306_Init();
 
   /* USER CODE END 2 */
 
@@ -129,6 +144,20 @@ int main(void)
 		  lastBlink = HAL_GetTick();
 		  HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
 	  }
+
+	  // Test if mode has been changed
+
+	  if (mode != oldMode)
+	  {
+		  if (mode == 1)
+		  {
+			  jumps = 0;
+			  ducks = 0;
+			  updateScreen = 1;
+		  }
+		  oldMode = mode;
+	  }
+
 	  // Test in guitar mode each servo presses every 500ms taking turns
 	  if (mode == 1 && HAL_GetTick() - lastTest > 500)
 	  {
@@ -138,6 +167,8 @@ int main(void)
 			  jumpPressed = 1;
 			  jumpTime = HAL_GetTick();
 			  nextServo = 2;
+			  jumps++;
+			  updateScreen = 1;
 		  }
 		  else
 		  {
@@ -145,6 +176,8 @@ int main(void)
 			  duckPressed = 1;
 			  duckTime = HAL_GetTick();
 			  nextServo = 1;
+			  ducks++;
+			  updateScreen = 1;
 		  }
 		  lastTest = HAL_GetTick();
 	  }
@@ -161,6 +194,23 @@ int main(void)
 	  {
 		  TIM4->CCR4 = duckRest;
 		  duckPressed = 0;
+	  }
+
+	  // Redraw the screen
+	  if (updateScreen == 1)
+	  {
+		  ssd1306_Fill(Black);
+
+		  sprintf(text, "Jumps: %d", jumps);
+		  ssd1306_SetCursor(0, 10);
+		  ssd1306_WriteString(text, Font_11x18, White);
+
+		  sprintf(text, "Ducks: %d", ducks);
+		  ssd1306_SetCursor(0, 36);
+		  ssd1306_WriteString(text, Font_11x18, White);
+
+		  ssd1306_UpdateScreen();
+		  updateScreen = 0;
 	  }
 
   }
@@ -210,6 +260,40 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
+}
+
+/**
+  * @brief I2C1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_I2C1_Init(void)
+{
+
+  /* USER CODE BEGIN I2C1_Init 0 */
+
+  /* USER CODE END I2C1_Init 0 */
+
+  /* USER CODE BEGIN I2C1_Init 1 */
+
+  /* USER CODE END I2C1_Init 1 */
+  hi2c1.Instance = I2C1;
+  hi2c1.Init.ClockSpeed = 400000;
+  hi2c1.Init.DutyCycle = I2C_DUTYCYCLE_2;
+  hi2c1.Init.OwnAddress1 = 0;
+  hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
+  hi2c1.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
+  hi2c1.Init.OwnAddress2 = 0;
+  hi2c1.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
+  hi2c1.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
+  if (HAL_I2C_Init(&hi2c1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN I2C1_Init 2 */
+
+  /* USER CODE END I2C1_Init 2 */
+
 }
 
 /**
