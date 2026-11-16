@@ -9,11 +9,11 @@ To develop an autonomous system using the STM32F411CEU6 that detects obstacles i
 - **GL5528 Photoresistors (3):** Detect approaching cacti and flying birds by sensing changes in screen brightness.
 - **10 kΩ Resistors (3):** Form voltage dividers with the photoresistors to provide measurable analog voltages to the STM32 ADC.
 - **SG90 Servo Motors (2):** Physically press the keyboard's spacebar for jumping and down arrow for ducking.
+- **Breadboard Power Module:** Powers the servos separately from the microcontroller.
 - **470 µF Capacitor:** Helps stabilize the servo power supply during current surges.
-- **ST7735 TFT Display:** Displays system information, operating mode, and game statistics.
+- **SSD1306 OLED Display (0.96"):** Displays operating mode and game statistics.
 - **microSD Card Module:** Stores game logs and the best score.
-- **USB-UART Adapter:** Provides serial communication between the STM32 and a PC for debugging and commands.
-- - **Push Button:** Starts a new round.
+- **Push Button:** Starts a new round.
 
 ## Features
 
