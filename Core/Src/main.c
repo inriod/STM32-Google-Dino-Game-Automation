@@ -45,7 +45,11 @@
 /* Private variables ---------------------------------------------------------*/
 I2C_HandleTypeDef hi2c1;
 
+IWDG_HandleTypeDef hiwdg;
+
 TIM_HandleTypeDef htim4;
+
+UART_HandleTypeDef huart1;
 
 /* USER CODE BEGIN PV */
 volatile uint8_t mode = 0; // 0 = Auto, 1 = Guitar
@@ -74,6 +78,12 @@ uint16_t jumps = 0;
 uint16_t ducks = 0;
 uint8_t updateScreen = 1;
 char text[20];
+
+// Guitar UART
+uint8_t rxByte = 0;
+volatile uint8_t command = 0; // 'H' or 'L'
+volatile uint8_t command_flag = 0; // 1 - new command arrived
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -81,6 +91,8 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_TIM4_Init(void);
 static void MX_I2C1_Init(void);
+static void MX_USART1_UART_Init(void);
+static void MX_IWDG_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -121,14 +133,19 @@ int main(void)
   MX_GPIO_Init();
   MX_TIM4_Init();
   MX_I2C1_Init();
+  MX_USART1_UART_Init();
+  MX_IWDG_Init();
   /* USER CODE BEGIN 2 */
 
+  HAL_UART_Receive_IT(&huart1, &rxByte, 1);
   HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_3); // jump servo
   HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_4); // duck servo
   TIM4->CCR3 = jumpRest;
   TIM4->CCR4 = duckRest;
 
   ssd1306_Init();
+
+  __HAL_DBGMCU_FREEZE_IWDG();
 
   /* USER CODE END 2 */
 
@@ -139,6 +156,9 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+	  HAL_IWDG_Refresh(&hiwdg);
+
+
 	  if (HAL_GetTick() - lastBlink >= (mode ? 100 : 500)) // Auto mode : slow, Guitar mode : fast
 	  {
 		  lastBlink = HAL_GetTick();
@@ -149,17 +169,15 @@ int main(void)
 
 	  if (mode != oldMode)
 	  {
-		  if (mode == 1)
-		  {
-			  jumps = 0;
-			  ducks = 0;
-			  updateScreen = 1;
-		  }
+
+		  jumps = 0;
+		  ducks = 0;
+		  updateScreen = 1;
 		  oldMode = mode;
 	  }
 
-	  // Test in guitar mode each servo presses every 500ms taking turns
-	  if (mode == 1 && HAL_GetTick() - lastTest > 500)
+	  // Test in Auto mode each servo presses every 500ms taking turns
+	  if (mode == 0 && HAL_GetTick() - lastTest > 500)
 	  {
 		  if (nextServo == 1)
 		  {
@@ -182,6 +200,32 @@ int main(void)
 		  lastTest = HAL_GetTick();
 	  }
 
+	  // Guitar Mode
+
+	  if (command_flag == 1)
+	  {
+		  if (mode == 1)
+		  {
+			  if (command == 'H')
+			  {
+				  TIM4->CCR3 = jumpPress;
+				  jumpPressed = 1;
+				  jumpTime = HAL_GetTick();
+				  jumps++;
+				  updateScreen = 1;
+			  }
+			  if (command == 'L')
+			  {
+				  TIM4->CCR4 = duckPress;
+				  duckPressed = 1;
+				  duckTime = HAL_GetTick();
+				  ducks++;
+				  updateScreen = 1;
+			  }
+		  }
+		  command_flag = 0;
+	  }
+
 	  // Release jump after 200 ms
 	  if (jumpPressed == 1 && HAL_GetTick() - jumpTime > 200)
 	  {
@@ -201,12 +245,24 @@ int main(void)
 	  {
 		  ssd1306_Fill(Black);
 
+		  if (mode == 0)
+		  {
+			  sprintf(text, "AUTO MODE");
+		  }
+		  else
+		  {
+			  sprintf(text, "GUITAR MODE");
+		  }
+		  ssd1306_SetCursor(0,0);
+		  ssd1306_WriteString(text, Font_11x18, White);
+
+
 		  sprintf(text, "Jumps: %d", jumps);
-		  ssd1306_SetCursor(0, 10);
+		  ssd1306_SetCursor(0, 22);
 		  ssd1306_WriteString(text, Font_11x18, White);
 
 		  sprintf(text, "Ducks: %d", ducks);
-		  ssd1306_SetCursor(0, 36);
+		  ssd1306_SetCursor(0, 44);
 		  ssd1306_WriteString(text, Font_11x18, White);
 
 		  ssd1306_UpdateScreen();
@@ -234,8 +290,9 @@ void SystemClock_Config(void)
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
   */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_LSI|RCC_OSCILLATORTYPE_HSE;
   RCC_OscInitStruct.HSEState = RCC_HSE_ON;
+  RCC_OscInitStruct.LSIState = RCC_LSI_ON;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
   RCC_OscInitStruct.PLL.PLLM = 12;
@@ -293,6 +350,34 @@ static void MX_I2C1_Init(void)
   /* USER CODE BEGIN I2C1_Init 2 */
 
   /* USER CODE END I2C1_Init 2 */
+
+}
+
+/**
+  * @brief IWDG Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_IWDG_Init(void)
+{
+
+  /* USER CODE BEGIN IWDG_Init 0 */
+
+  /* USER CODE END IWDG_Init 0 */
+
+  /* USER CODE BEGIN IWDG_Init 1 */
+
+  /* USER CODE END IWDG_Init 1 */
+  hiwdg.Instance = IWDG;
+  hiwdg.Init.Prescaler = IWDG_PRESCALER_32;
+  hiwdg.Init.Reload = 999;
+  if (HAL_IWDG_Init(&hiwdg) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN IWDG_Init 2 */
+
+  /* USER CODE END IWDG_Init 2 */
 
 }
 
@@ -360,6 +445,39 @@ static void MX_TIM4_Init(void)
 }
 
 /**
+  * @brief USART1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_USART1_UART_Init(void)
+{
+
+  /* USER CODE BEGIN USART1_Init 0 */
+
+  /* USER CODE END USART1_Init 0 */
+
+  /* USER CODE BEGIN USART1_Init 1 */
+
+  /* USER CODE END USART1_Init 1 */
+  huart1.Instance = USART1;
+  huart1.Init.BaudRate = 115200;
+  huart1.Init.WordLength = UART_WORDLENGTH_8B;
+  huart1.Init.StopBits = UART_STOPBITS_1;
+  huart1.Init.Parity = UART_PARITY_NONE;
+  huart1.Init.Mode = UART_MODE_TX_RX;
+  huart1.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+  huart1.Init.OverSampling = UART_OVERSAMPLING_16;
+  if (HAL_UART_Init(&huart1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN USART1_Init 2 */
+
+  /* USER CODE END USART1_Init 2 */
+
+}
+
+/**
   * @brief GPIO Initialization Function
   * @param None
   * @retval None
@@ -409,6 +527,24 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 	{
 		lastPress = HAL_GetTick();
 		mode = !mode;
+	}
+}
+
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
+{
+	if (huart->Instance == USART1)
+	{
+		command = rxByte;
+		command_flag = 1;
+		HAL_UART_Receive_IT(&huart1, &rxByte, 1);
+	}
+}
+
+void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart)
+{
+	if (huart->Instance == USART1)
+	{
+		HAL_UART_Receive_IT(&huart1, &rxByte, 1);
 	}
 }
 /* USER CODE END 4 */
