@@ -46,18 +46,20 @@ To develop an autonomous system using the STM32F411CEU6 that detects obstacles i
 |---|---|---|---|
 | 1 | LED and button | GPIO, EXTI | Done |
 | 2 | Jump and duck servos | TIM4 PWM | Done (need tuning on keyboard) |
-| 3 | Reading photoresistors | ADC, DMA, TIM2 | Next |
-| 4 | Detecting obstacles and jumping | - | Planned |
-| 5 | Speed measuring and timed jump | TIM5 | Planned |
-| 6 | Communication with PC | USART2 | Planned |
-| 7 | Display | SPI1 | Planned |
+| 3 | OLED screen with counters | I2C1 | Done |
+| 4 | Reading photoresistors | ADC, DMA, TIM2 | Next |
+| 5 | Detecting obstacles and jumping | - | Planned |
+| 6 | Speed measuring and timed jump | TIM5 | Planned |
+| 7 | Communication with PC | USART2 | Planned |
 | 8 | Saving calibration and best score | I2C1 | Planned |
 | 9 | Connection with guitar board | USART1 | Planned |
 
 **Part 1:** Onboard LED (PC13) is blinking slow in Auto mode and fast in Guitar mode. KEY button (PA0) changes the mode with interrupt, presses closer than 200 ms are ignored because of bouncing.
 
-**Part 2:** Two servos with PWM from TIM4, PB8 for jump and PB9 for duck. Prescaler 99 and period 19999 gives 50 Hz, so CCR value is the pulse width in us. Servo goes to press position and after 200 ms (jump) or 300 ms (duck) comes back. I have only one servo now, so I checked both channels by moving the wire.
+**Part 2:** Two servos with PWM from TIM4, PB8 for jump and PB9 for duck. Prescaler 99 and period 19999 gives 50 Hz, so CCR value is the pulse width in us. Servo goes to press position and after 200 ms (jump) or 300 ms (duck) comes back. Servos are powered from separate breadboard power module, not from the board.
 
-Note: board must be powered from USB-C, from ST-Link only the 5V pin has no power and servos don't move.
+**Part 3:** OLED screen 0.96" (SSD1306) on I2C1, PB6 and PB7. It shows the number of jumps and ducks. Screen is updated only when number changes, because sending the full picture takes some time. Every time Guitar mode starts, counters are reset to 0. For the screen I used the stm32-ssd1306 library.
+
+Note: board must be powered from USB-C or from ST-Link 3.3V. Servo power module ground must be connected to board ground.
 
 **Course:** ENGS 251 – Embedded Systems Project
