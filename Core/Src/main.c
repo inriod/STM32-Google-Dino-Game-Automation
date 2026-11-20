@@ -23,6 +23,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include <stdio.h>
+#include <string.h>
 #include "ssd1306.h"
 #include "ssd1306_fonts.h"
 /* USER CODE END Includes */
@@ -43,10 +44,14 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
+ADC_HandleTypeDef hadc1;
+DMA_HandleTypeDef hdma_adc1;
+
 I2C_HandleTypeDef hi2c1;
 
 IWDG_HandleTypeDef hiwdg;
 
+TIM_HandleTypeDef htim2;
 TIM_HandleTypeDef htim4;
 
 UART_HandleTypeDef huart1;
@@ -69,10 +74,6 @@ uint16_t duckPress = 1800;
 uint8_t duckPressed = 0;
 uint32_t duckTime = 0;
 
-// Test
-uint32_t lastTest = 0;
-uint8_t nextServo = 1;
-
 // Screen
 uint16_t jumps = 0;
 uint16_t ducks = 0;
@@ -84,15 +85,33 @@ uint8_t rxByte = 0;
 volatile uint8_t command = 0; // 'H' or 'L'
 volatile uint8_t command_flag = 0; // 1 - new command arrived
 
+// LDR 1 - PA1 and LDR 2 - PB0
+uint16_t adcValues[2];
+uint32_t lastPoll = 0;
+char msg[50];
+
+// Obstacle detection
+uint16_t threshold = 1950;
+uint8_t obstacleDetected = 0;
+uint16_t background = 0;
+
+// Game
+volatile uint8_t startPressed = 0;
+uint8_t gameRunning = 0;
+uint32_t gameStartTime = 0;
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
+static void MX_DMA_Init(void);
 static void MX_TIM4_Init(void);
 static void MX_I2C1_Init(void);
 static void MX_USART1_UART_Init(void);
 static void MX_IWDG_Init(void);
+static void MX_ADC1_Init(void);
+static void MX_TIM2_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -131,10 +150,13 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+  MX_DMA_Init();
   MX_TIM4_Init();
   MX_I2C1_Init();
   MX_USART1_UART_Init();
   MX_IWDG_Init();
+  MX_ADC1_Init();
+  MX_TIM2_Init();
   /* USER CODE BEGIN 2 */
 
   HAL_UART_Receive_IT(&huart1, &rxByte, 1);
@@ -146,6 +168,9 @@ int main(void)
   ssd1306_Init();
 
   __HAL_DBGMCU_FREEZE_IWDG();
+
+  HAL_ADC_Start_DMA(&hadc1, (uint32_t*)adcValues, 2);
+  HAL_TIM_Base_Start(&htim2); // psc 99, arr 99
 
   /* USER CODE END 2 */
 
@@ -172,32 +197,61 @@ int main(void)
 
 		  jumps = 0;
 		  ducks = 0;
+		  gameRunning = 0;
 		  updateScreen = 1;
 		  oldMode = mode;
 	  }
 
-	  // Test in Auto mode each servo presses every 500ms taking turns
-	  if (mode == 0 && HAL_GetTick() - lastTest > 500)
+	  // Start button
+	  if (startPressed == 1)
 	  {
-		  if (nextServo == 1)
+		  startPressed = 0;
+
+		  if (mode == 0)
 		  {
+			  if (gameRunning == 0)
+			  {
+				  // Starting a new round
+				  TIM4->CCR3 = jumpPress;
+				  jumpPressed = 1;
+				  jumpTime = HAL_GetTick();
+
+				  gameRunning = 1;
+				  gameStartTime = HAL_GetTick();
+				  jumps = 0;
+				  ducks = 0;
+
+				  background = adcValues[0];
+				  threshold = background - 250;
+				  obstacleDetected = 0;
+			  }
+			  else
+			  {
+				  gameRunning = 0; // stop the game
+			  }
+			  updateScreen = 1;
+		  }
+	  }
+
+	  // Auto mode: jump when LDR detects an obstacle
+	  if (mode == 0 && gameRunning == 1)
+	  {
+		  // obstacle arrives
+		  if (adcValues[0] < threshold && obstacleDetected == 0)
+		  {
+			  obstacleDetected = 1;
 			  TIM4->CCR3 = jumpPress;
 			  jumpPressed = 1;
 			  jumpTime = HAL_GetTick();
-			  nextServo = 2;
 			  jumps++;
 			  updateScreen = 1;
 		  }
-		  else
+
+		  // obstacle has passed
+		  if (adcValues[0] > threshold + 100)
 		  {
-			  TIM4->CCR4 = duckPress;
-			  duckPressed = 1;
-			  duckTime = HAL_GetTick();
-			  nextServo = 1;
-			  ducks++;
-			  updateScreen = 1;
+			  obstacleDetected = 0;
 		  }
-		  lastTest = HAL_GetTick();
 	  }
 
 	  // Guitar Mode
@@ -240,6 +294,15 @@ int main(void)
 		  duckPressed = 0;
 	  }
 
+	  // Test: read LDR
+	  if (HAL_GetTick() - lastPoll > 200)
+	  {
+		  sprintf(msg, "LDR 1: %d\n", adcValues[0]);
+		  HAL_UART_Transmit(&huart1, (uint8_t*)msg, strlen(msg), 50);
+		  lastPoll = HAL_GetTick();
+	  }
+
+
 	  // Redraw the screen
 	  if (updateScreen == 1)
 	  {
@@ -247,7 +310,14 @@ int main(void)
 
 		  if (mode == 0)
 		  {
-			  sprintf(text, "AUTO MODE");
+			  if (gameRunning == 1)
+			  	{
+				  sprintf(text, "AUTO MODE");
+			  	}
+			  else
+			  {
+				  sprintf(text, "PRESS START");
+			  }
 		  }
 		  else
 		  {
@@ -320,6 +390,67 @@ void SystemClock_Config(void)
 }
 
 /**
+  * @brief ADC1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_ADC1_Init(void)
+{
+
+  /* USER CODE BEGIN ADC1_Init 0 */
+
+  /* USER CODE END ADC1_Init 0 */
+
+  ADC_ChannelConfTypeDef sConfig = {0};
+
+  /* USER CODE BEGIN ADC1_Init 1 */
+
+  /* USER CODE END ADC1_Init 1 */
+
+  /** Configure the global features of the ADC (Clock, Resolution, Data Alignment and number of conversion)
+  */
+  hadc1.Instance = ADC1;
+  hadc1.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV4;
+  hadc1.Init.Resolution = ADC_RESOLUTION_12B;
+  hadc1.Init.ScanConvMode = ENABLE;
+  hadc1.Init.ContinuousConvMode = DISABLE;
+  hadc1.Init.DiscontinuousConvMode = DISABLE;
+  hadc1.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_RISING;
+  hadc1.Init.ExternalTrigConv = ADC_EXTERNALTRIGCONV_T2_TRGO;
+  hadc1.Init.DataAlign = ADC_DATAALIGN_RIGHT;
+  hadc1.Init.NbrOfConversion = 2;
+  hadc1.Init.DMAContinuousRequests = ENABLE;
+  hadc1.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
+  if (HAL_ADC_Init(&hadc1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
+  */
+  sConfig.Channel = ADC_CHANNEL_1;
+  sConfig.Rank = 1;
+  sConfig.SamplingTime = ADC_SAMPLETIME_84CYCLES;
+  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
+  */
+  sConfig.Channel = ADC_CHANNEL_8;
+  sConfig.Rank = 2;
+  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN ADC1_Init 2 */
+
+  /* USER CODE END ADC1_Init 2 */
+
+}
+
+/**
   * @brief I2C1 Initialization Function
   * @param None
   * @retval None
@@ -378,6 +509,51 @@ static void MX_IWDG_Init(void)
   /* USER CODE BEGIN IWDG_Init 2 */
 
   /* USER CODE END IWDG_Init 2 */
+
+}
+
+/**
+  * @brief TIM2 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM2_Init(void)
+{
+
+  /* USER CODE BEGIN TIM2_Init 0 */
+
+  /* USER CODE END TIM2_Init 0 */
+
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+
+  /* USER CODE BEGIN TIM2_Init 1 */
+
+  /* USER CODE END TIM2_Init 1 */
+  htim2.Instance = TIM2;
+  htim2.Init.Prescaler = 99;
+  htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim2.Init.Period = 99;
+  htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim2, &sClockSourceConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_UPDATE;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim2, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM2_Init 2 */
+
+  /* USER CODE END TIM2_Init 2 */
 
 }
 
@@ -460,7 +636,7 @@ static void MX_USART1_UART_Init(void)
 
   /* USER CODE END USART1_Init 1 */
   huart1.Instance = USART1;
-  huart1.Init.BaudRate = 115200;
+  huart1.Init.BaudRate = 9600;
   huart1.Init.WordLength = UART_WORDLENGTH_8B;
   huart1.Init.StopBits = UART_STOPBITS_1;
   huart1.Init.Parity = UART_PARITY_NONE;
@@ -474,6 +650,22 @@ static void MX_USART1_UART_Init(void)
   /* USER CODE BEGIN USART1_Init 2 */
 
   /* USER CODE END USART1_Init 2 */
+
+}
+
+/**
+  * Enable DMA controller clock
+  */
+static void MX_DMA_Init(void)
+{
+
+  /* DMA controller clock enable */
+  __HAL_RCC_DMA2_CLK_ENABLE();
+
+  /* DMA interrupt init */
+  /* DMA2_Stream0_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA2_Stream0_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA2_Stream0_IRQn);
 
 }
 
@@ -511,9 +703,18 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_PULLUP;
   HAL_GPIO_Init(KEY_GPIO_Port, &GPIO_InitStruct);
 
+  /*Configure GPIO pin : START_Pin */
+  GPIO_InitStruct.Pin = START_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
+  HAL_GPIO_Init(START_GPIO_Port, &GPIO_InitStruct);
+
   /* EXTI interrupt init*/
   HAL_NVIC_SetPriority(EXTI0_IRQn, 0, 0);
   HAL_NVIC_EnableIRQ(EXTI0_IRQn);
+
+  HAL_NVIC_SetPriority(EXTI15_10_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
 
   /* USER CODE BEGIN MX_GPIO_Init_2 */
 
@@ -527,6 +728,12 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 	{
 		lastPress = HAL_GetTick();
 		mode = !mode;
+	}
+
+	if (GPIO_Pin == START_Pin && HAL_GetTick() - lastPress > 300)
+	{
+		lastPress = HAL_GetTick();
+		startPressed = 1;
 	}
 }
 
