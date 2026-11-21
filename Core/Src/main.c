@@ -100,6 +100,16 @@ volatile uint8_t startPressed = 0;
 uint8_t gameRunning = 0;
 uint32_t gameStartTime = 0;
 
+// Ducking (LDR C)
+uint16_t backgroundC = 0;
+uint16_t thresholdC = 0;
+uint8_t birdDetected = 0; // 1 while a bird is over LDR C
+uint16_t duckHold = 300; // how long to hold the down key (ms)
+
+// Game over detection
+uint32_t lastDarkTime = 0; // last time any LDR saw something dark
+uint16_t gameOverTime = 5000; // both LDRs bright this long = game over (ms)
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -224,6 +234,12 @@ int main(void)
 				  background = adcValues[0];
 				  threshold = background - 250;
 				  obstacleDetected = 0;
+
+				  backgroundC = adcValues[1];
+				  thresholdC = backgroundC - 250;
+				  birdDetected = 0;
+
+				  lastDarkTime = HAL_GetTick(); // start counting from now
 			  }
 			  else
 			  {
@@ -236,6 +252,19 @@ int main(void)
 	  // Auto mode: jump when LDR detects an obstacle
 	  if (mode == 0 && gameRunning == 1)
 	  {
+		  // something dark on any LDR = the game is still running
+		  if (adcValues[0] < threshold || adcValues[1] < thresholdC)
+		  {
+			  lastDarkTime = HAL_GetTick();
+		  }
+
+		  // both LDRs bright for too long = game over
+		  if (HAL_GetTick() - lastDarkTime > gameOverTime)
+		  {
+			  gameRunning = 0; // back to PRESS START
+			  updateScreen = 1;
+		  }
+
 		  // obstacle arrives
 		  if (adcValues[0] < threshold && obstacleDetected == 0)
 		  {
@@ -251,6 +280,28 @@ int main(void)
 		  if (adcValues[0] > threshold + 100)
 		  {
 			  obstacleDetected = 0;
+		  }
+
+		  // bird at head height: LDR C dark, but LDR A still bright
+		  if (adcValues[1] < thresholdC && birdDetected == 0)
+		  {
+			  birdDetected = 1;
+
+			  if (adcValues[0] > threshold) // LDR A bright = not a cactus
+			  {
+				  TIM4->CCR4 = duckPress;
+				  duckPressed = 1;
+				  duckTime = HAL_GetTick();
+				  duckHold = 800; // stay down until the bird has passed
+				  ducks++;
+				  updateScreen = 1;
+			  }
+		  }
+
+		  // bird has passed LDR C
+		  if (adcValues[1] > thresholdC + 100)
+		  {
+			  birdDetected = 0;
 		  }
 	  }
 
@@ -273,6 +324,7 @@ int main(void)
 				  TIM4->CCR4 = duckPress;
 				  duckPressed = 1;
 				  duckTime = HAL_GetTick();
+				  duckHold = 300;
 				  ducks++;
 				  updateScreen = 1;
 			  }
@@ -287,21 +339,12 @@ int main(void)
 		  jumpPressed = 0;
 	  }
 
-	  // Release duck after 300 ms
-	  if (duckPressed == 1 && HAL_GetTick() - duckTime > 300)
+	  // Release duck after duckHold ms
+	  if (duckPressed == 1 && HAL_GetTick() - duckTime > duckHold)
 	  {
 		  TIM4->CCR4 = duckRest;
 		  duckPressed = 0;
 	  }
-
-	  // Test: read LDR
-	  if (HAL_GetTick() - lastPoll > 200)
-	  {
-		  sprintf(msg, "LDR 1: %d\n", adcValues[0]);
-		  HAL_UART_Transmit(&huart1, (uint8_t*)msg, strlen(msg), 50);
-		  lastPoll = HAL_GetTick();
-	  }
-
 
 	  // Redraw the screen
 	  if (updateScreen == 1)
