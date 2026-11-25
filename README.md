@@ -43,9 +43,8 @@ To develop an autonomous system using the STM32F411CEU6 that detects obstacles i
 | IWDG | - | Watchdog |
 
 ## Wiring Diagram
-<p align="center>
-    <img src="docs/wiring_diagram.png" width="700">
-</p>
+
+![Wiring diagram](docs/wiring_diagram.png)
 
 Full quality version: [wiring_diagram.pdf](docs/wiring_diagram.pdf)
 
@@ -164,7 +163,7 @@ The game speed increases over time. A timing model based on the game source code
 r = Runner.getInstance(); r.config.acceleration = 0; r.config.speed = 9; r.currentSpeed = 9
 ```
 > [!TIP]
-> Ru the script again after every page reload.
+> Run the script again after every page reload.
 
 
 ## System Description
@@ -174,13 +173,20 @@ r = Runner.getInstance(); r.config.acceleration = 0; r.config.speed = 9; r.curre
 
     The onboard LED (PC13) blinks slowly in Auto mode and fast in Guitar mode. The KEY button (PA0) toggles the mode through an external interrupt. Presses closer than 200 ms are ignored as button bounce.
 </details>
+<details>
+    <summary><b>2. Servos</b></summary>
 
+    TIM4 generates PWM for two servos: PB8 (jump) and PB9 (duck). Prescaler 99 and period 19999 give 50 Hz, so the CCR value equals the pulse width in µs. Each servo moves to the press position and returns after a set time (200 ms for jump, 800 ms for duck in Auto mode). The servos are powered from a separate breadboard power module.
+</details>
+<details>
+    <summary><b>3. OLED display</b></summary>
 
-**2. Servos.** TIM4 generates PWM for two servos: PB8 (jump) and PB9 (duck). Prescaler 99 and period 19999 give 50 Hz, so the CCR value equals the pulse width in µs. Each servo moves to the press position and returns after a set time (200 ms for jump, 800 ms for duck in Auto mode). The servos are powered from a separate breadboard power module.
+    A 0.96" SSD1306 display on I2C1 (PB6, PB7) shows the mode (or PRESS START) and the number of jumps and ducks. The screen is redrawn only when a value changes, since a full update takes several milliseconds. Counters reset on mode change and at the start of each round. The stm32-ssd1306 library is used.
+<details>
+    <summary><b>4. Bluetooth link.</b></summary>
 
-**3. OLED display.** A 0.96" SSD1306 display on I2C1 (PB6, PB7) shows the mode (or PRESS START) and the number of jumps and ducks. The screen is redrawn only when a value changes, since a full update takes several milliseconds. Counters reset on mode change and at the start of each round. The stm32-ssd1306 library is used.
-
-**4. Bluetooth link.** USART1 (PA9, PA10) is connected to an HC-05 module at 9600 baud. The guitar board sends one character: 'H' (high note) for jump and 'L' (low note) for duck. Commands are accepted only in Guitar mode. Reception is interrupt-based and restarts automatically after a line error. The link was tested with a second HC-05 on an Arduino Mega. The modules are configured as master and slave with AT commands and connect automatically.
+    USART1 (PA9, PA10) is connected to an HC-05 module at 9600 baud. The guitar board sends one character: 'H' (high note) for jump and 'L' (low note) for duck. Commands are accepted only in Guitar mode. Reception is interrupt-based and restarts automatically after a line error. The link was tested with a second HC-05 on an Arduino Mega. The modules are configured as master and slave with AT commands and connect automatically.
+</details>
 
 **5. Watchdog.** The IWDG has a timeout of about 1 second and is refreshed in every main loop cycle. If the program freezes, the board resets. The watchdog is paused during debugging.
 
