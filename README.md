@@ -68,6 +68,49 @@ Full quality version: [wiring_diagram.pdf](docs/wiring_diagram.pdf)
 | 10 | Game over detection | - | Done |
 | 11 | LED matrix action indicator | SPI1 | Done |
 
+## Sequence Daigram
+```mermaid
+sequenceDiagram
+    actor User
+    participant Screen as Dino game screen
+    participant LDR as LDR A / LDR C
+    participant ADC as TIM2 + ADC + DMA
+    participant MCU as STM32 main loop
+    participant Servo as Jump / Duck servo
+    participant Matrix as MAX7219 (SPI)
+    participant OLED as OLED (I2C)
+
+    User->>MCU: Press START (PB12, EXTI)
+    MCU->>Servo: Press space (start game)
+    MCU->>MCU: threshold = background - 250
+    MCU->>OLED: "AUTO MODE"
+
+    loop every 0.1 ms
+        ADC->>LDR: Sample PA1 and PB0
+        ADC->>MCU: DMA writes adcValues[2]
+    end
+
+    Screen->>LDR: Cactus darkens LDR A
+    MCU->>MCU: adcValues[0] < threshold
+    MCU->>Servo: Jump servo presses space
+    MCU->>Matrix: Show up arrow
+    MCU->>OLED: Jumps + 1
+    Note over MCU,Servo: after 200 ms
+    MCU->>Servo: Release jump servo
+    MCU->>Matrix: Clear
+
+    Screen->>LDR: Bird darkens LDR C (LDR A bright)
+    MCU->>Servo: Duck servo holds down arrow
+    MCU->>Matrix: Show down arrow
+    MCU->>OLED: Ducks + 1
+    Note over MCU,Servo: after 800 ms
+    MCU->>Servo: Release duck servo
+    MCU->>Matrix: Clear
+
+    Note over Screen,MCU: No dark object for 5 s
+    MCU->>OLED: "PRESS START" (game over)
+```
+
 ## System Description
 
 **1. Status LED and mode button.** The onboard LED (PC13) blinks slowly in Auto mode and fast in Guitar mode. The KEY button (PA0) toggles the mode through an external interrupt. Presses closer than 200 ms are ignored as button bounce.
