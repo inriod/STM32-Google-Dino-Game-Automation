@@ -171,36 +171,68 @@ r = Runner.getInstance(); r.config.acceleration = 0; r.config.speed = 9; r.curre
 <details>
     <summary><b>1. Status LED and mode button</b></summary>
 
-    The onboard LED (PC13) blinks slowly in Auto mode and fast in Guitar mode. The KEY button (PA0) toggles the mode through an external interrupt. Presses closer than 200 ms are ignored as button bounce.
+The onboard LED (PC13) blinks slowly in Auto mode and fast in Guitar mode. The KEY button (PA0) toggles the mode through an external interrupt. Presses closer than 200 ms are ignored as button bounce.
 </details>
+
 <details>
     <summary><b>2. Servos</b></summary>
 
-    TIM4 generates PWM for two servos: PB8 (jump) and PB9 (duck). Prescaler 99 and period 19999 give 50 Hz, so the CCR value equals the pulse width in µs. Each servo moves to the press position and returns after a set time (200 ms for jump, 800 ms for duck in Auto mode). The servos are powered from a separate breadboard power module.
+TIM4 generates PWM for two servos: PB8 (jump) and PB9 (duck). Prescaler 99 and period 19999 give 50 Hz, so the CCR value equals the pulse width in µs. Each servo moves to the press position and returns after a set time (200 ms for jump, 800 ms for duck in Auto mode). The servos are powered from a separate breadboard power module.
 </details>
+
 <details>
     <summary><b>3. OLED display</b></summary>
 
-    A 0.96" SSD1306 display on I2C1 (PB6, PB7) shows the mode (or PRESS START) and the number of jumps and ducks. The screen is redrawn only when a value changes, since a full update takes several milliseconds. Counters reset on mode change and at the start of each round. The stm32-ssd1306 library is used.
-<details>
-    <summary><b>4. Bluetooth link.</b></summary>
-
-    USART1 (PA9, PA10) is connected to an HC-05 module at 9600 baud. The guitar board sends one character: 'H' (high note) for jump and 'L' (low note) for duck. Commands are accepted only in Guitar mode. Reception is interrupt-based and restarts automatically after a line error. The link was tested with a second HC-05 on an Arduino Mega. The modules are configured as master and slave with AT commands and connect automatically.
+A 0.96" SSD1306 display on I2C1 (PB6, PB7) shows the mode (or PRESS START) and the number of jumps and ducks. The screen is redrawn only when a value changes, since a full update takes several milliseconds. Counters reset on mode change and at the start of each round. The stm32-ssd1306 library is used.
 </details>
 
-**5. Watchdog.** The IWDG has a timeout of about 1 second and is refreshed in every main loop cycle. If the program freezes, the board resets. The watchdog is paused during debugging.
+<details>
+    <summary><b>4. Bluetooth link</b></summary>
 
-**6. Photoresistor reading.** Two photoresistors with 10 kΩ resistors form voltage dividers on PA1 (LDR 1, ground level) and PB0 (LDR 2, head level). TIM2 triggers the ADC 10,000 times per second, and DMA stores the results in an array without CPU involvement.
+USART1 (PA9, PA10) is connected to an HC-05 module at 9600 baud. The guitar board sends one character: 'H' (high note) for jump and 'L' (low note) for duck. Commands are accepted only in Guitar mode. Reception is interrupt-based and restarts automatically after a line error. The link was tested with a second HC-05 on an Arduino Mega. The modules are configured as master and slave with AT commands and connect automatically.
+</details>
 
-**7. Cactus detection.** LDR 1 is placed in front of the dino. An approaching cactus darkens the screen area, the reading drops below the threshold, and the jump servo presses space. The reading must rise clearly above the threshold (hysteresis of 100) before the next jump, so each cactus causes only one jump.
+<details>
+    <summary><b>5. Watchdog</b></summary>
 
-**8. START button and calibration.** The START button (PB12) presses space to start the game, measures the brightness of the empty screen, and sets each threshold 250 below it. This keeps detection reliable under different room light and monitor brightness. A second press stops the round. A single fixed threshold for both sensors was also tested, but it missed fast obstacles, so automatic calibration is used.
+The IWDG has a timeout of about 1 second and is refreshed in every main loop cycle. If the program freezes, the board resets. The watchdog is paused during debugging.
+</details>
 
-**9. Bird detection.** LDR 2 is placed slightly above the dino's head. If LDR 2 detects an object while LDR 1 does not, the object is a bird, and the duck servo holds the down arrow until it passes. If both sensors are dark, the object is a tall cactus and the dino jumps.
+<details>
+    <summary><b>6. Photoresistor reading</b></summary>
 
-**10. Game over detection.** If neither sensor detects an object for 5 seconds, the game is considered over (the picture stops moving after a crash), and the screen returns to PRESS START.
+Two photoresistors with 10 kΩ resistors form voltage dividers on PA1 (LDR 1, ground level) and PB0 (LDR 2, head level). TIM2 triggers the ADC 10,000 times per second, and DMA stores the results in an array without CPU involvement.
+</details>
 
-**11. LED matrix.** A MAX7219 8x8 LED matrix is connected to SPI1 (PA5 clock, PA7 data, PB1 chip select). Only transmission is needed. The driver is in separate files `max7219.c` and `max7219.h`. The matrix shows an up arrow while jumping and a down arrow while ducking, and is cleared when the servo returns. It is powered from the 5V output of the power module. A microSD card logger was planned for SPI originally, but it was not reliable on the breadboard, so it was replaced with the LED matrix.
+<details>
+    <summary><b>7. Cactus detection</b></summary>
+
+LDR 1 is placed in front of the dino. An approaching cactus darkens the screen area, the reading drops below the threshold, and the jump servo presses space. The reading must rise clearly above the threshold (hysteresis of 100) before the next jump, so each cactus causes only one jump.
+</details>
+
+<details>
+    <summary><b>8. START button and calibration</b></summary>
+
+The START button (PB12) presses space to start the game, measures the brightness of the empty screen, and sets each threshold 250 below it. This keeps detection reliable under different room light and monitor brightness. A second press stops the round. A single fixed threshold for both sensors was also tested, but it missed fast obstacles, so automatic calibration is used.
+</details>
+
+<details>
+    <summary><b>9. Bird detection</b></summary>
+
+LDR 2 is placed slightly above the dino's head. If LDR 2 detects an object while LDR 1 does not, the object is a bird, and the duck servo holds the down arrow until it passes. If both sensors are dark, the object is a tall cactus and the dino jumps.
+</details>
+
+<details>
+    <summary><b>10. Game over detection</b></summary>
+
+If neither sensor detects an object for 5 seconds, the game is considered over (the picture stops moving after a crash), and the screen returns to PRESS START.
+</details>
+
+<details>
+    <summary><b>11. LED matrix</b></summary>
+
+A MAX7219 8x8 LED matrix is connected to SPI1 (PA5 clock, PA7 data, PB1 chip select). Only transmission is needed. The driver is in separate files `max7219.c` and `max7219.h`. The matrix shows an up arrow while jumping and a down arrow while ducking, and is cleared when the servo returns. It is powered from the 5V output of the power module. A microSD card logger was planned for SPI originally, but it was not reliable on the breadboard, so it was replaced with the LED matrix.
+</details>
 
 ## Power
 
