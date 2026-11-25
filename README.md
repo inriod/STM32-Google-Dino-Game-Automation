@@ -168,13 +168,13 @@ r = Runner.getInstance(); r.config.acceleration = 0; r.config.speed = 9; r.curre
 
 **5. Watchdog.** The IWDG has a timeout of about 1 second and is refreshed in every main loop cycle. If the program freezes, the board resets. The watchdog is paused during debugging.
 
-**6. Photoresistor reading.** Two photoresistors with 10 kΩ resistors form voltage dividers on PA1 (LDR A, ground level) and PB0 (LDR C, head level). TIM2 triggers the ADC 10,000 times per second, and DMA stores the results in an array without CPU involvement.
+**6. Photoresistor reading.** Two photoresistors with 10 kΩ resistors form voltage dividers on PA1 (LDR 1, ground level) and PB0 (LDR 2, head level). TIM2 triggers the ADC 10,000 times per second, and DMA stores the results in an array without CPU involvement.
 
-**7. Cactus detection.** LDR A is placed in front of the dino. An approaching cactus darkens the screen area, the reading drops below the threshold, and the jump servo presses space. The reading must rise clearly above the threshold (hysteresis of 100) before the next jump, so each cactus causes only one jump.
+**7. Cactus detection.** LDR 1 is placed in front of the dino. An approaching cactus darkens the screen area, the reading drops below the threshold, and the jump servo presses space. The reading must rise clearly above the threshold (hysteresis of 100) before the next jump, so each cactus causes only one jump.
 
 **8. START button and calibration.** The START button (PB12) presses space to start the game, measures the brightness of the empty screen, and sets each threshold 250 below it. This keeps detection reliable under different room light and monitor brightness. A second press stops the round. A single fixed threshold for both sensors was also tested, but it missed fast obstacles, so automatic calibration is used.
 
-**9. Bird detection.** LDR C is placed slightly above the dino's head. If LDR C detects an object while LDR A does not, the object is a bird, and the duck servo holds the down arrow until it passes. If both sensors are dark, the object is a tall cactus and the dino jumps.
+**9. Bird detection.** LDR 2 is placed slightly above the dino's head. If LDR 2 detects an object while LDR 1 does not, the object is a bird, and the duck servo holds the down arrow until it passes. If both sensors are dark, the object is a tall cactus and the dino jumps.
 
 **10. Game over detection.** If neither sensor detects an object for 5 seconds, the game is considered over (the picture stops moving after a crash), and the screen returns to PRESS START.
 
