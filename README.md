@@ -43,12 +43,15 @@ To develop an autonomous system using the STM32F411CEU6 that detects obstacles i
 | IWDG | - | Watchdog |
 
 ## Wiring Diagram
+<p align="center>
+    <img src="docs/wiring_diagram.png" width="700">
+</p>
 
-![Wiring Diagram](docs/wiring_diagram.png)
-
-[!WARNING]
-Power module GND must be connected to board GND. Breadboard power rails are split in the middle.
 Full quality version: [wiring_diagram.pdf](docs/wiring_diagram.pdf)
+
+> [!WARNING]
+> Power module GND must be connected to board GND. Breadboard power rails are split in the middle.
+
 
 
 ## Development
@@ -73,7 +76,13 @@ Full quality version: [wiring_diagram.pdf](docs/wiring_diagram.pdf)
 | 10 | Game over detection | - | Done |
 | 11 | LED matrix action indicator | SPI1 | Done |
 
-## Sequence Daigram
+**Remaining:**
+
+- [ ] Test with the partner's guitar board
+- [ ] Final tuning of servo and LDR positions
+- [ ] Add demo video
+
+## Sequence Diagram
 
 ### Auto mode
 ```mermaid
@@ -148,17 +157,24 @@ sequenceDiagram
 ```
 
 ## Game Speed
-[!NOTE]
+
 The game speed increases over time. A timing model based on the game source code was not accurate, because the game rounds the movement every frame and depends on the monitor refresh rate. For the demonstration, the speed is fixed from the browser console (speed 9, at which birds also appear):
 
 ```js
 r = Runner.getInstance(); r.config.acceleration = 0; r.config.speed = 9; r.currentSpeed = 9
 ```
+> [!TIP]
+> Ru the script again after every page reload.
 
 
 ## System Description
 
-**1. Status LED and mode button.** The onboard LED (PC13) blinks slowly in Auto mode and fast in Guitar mode. The KEY button (PA0) toggles the mode through an external interrupt. Presses closer than 200 ms are ignored as button bounce.
+<details>
+    <summary><b>1. Status LED and mode button</b></summary>
+
+    The onboard LED (PC13) blinks slowly in Auto mode and fast in Guitar mode. The KEY button (PA0) toggles the mode through an external interrupt. Presses closer than 200 ms are ignored as button bounce.
+</details>
+
 
 **2. Servos.** TIM4 generates PWM for two servos: PB8 (jump) and PB9 (duck). Prescaler 99 and period 19999 give 50 Hz, so the CCR value equals the pulse width in µs. Each servo moves to the press position and returns after a set time (200 ms for jump, 800 ms for duck in Auto mode). The servos are powered from a separate breadboard power module.
 
