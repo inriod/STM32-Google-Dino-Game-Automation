@@ -14,18 +14,19 @@
   * in the root directory of this software component.
   * If no LICENSE file comes with this software, it is provided AS-IS.
   *
+  *
   ******************************************************************************
   */
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include <stdio.h>
 #include <string.h>
 #include "ssd1306.h"
 #include "ssd1306_fonts.h"
+#include "max7219.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -50,6 +51,8 @@ DMA_HandleTypeDef hdma_adc1;
 I2C_HandleTypeDef hi2c1;
 
 IWDG_HandleTypeDef hiwdg;
+
+SPI_HandleTypeDef hspi1;
 
 TIM_HandleTypeDef htim2;
 TIM_HandleTypeDef htim4;
@@ -85,10 +88,8 @@ uint8_t rxByte = 0;
 volatile uint8_t command = 0; // 'H' or 'L'
 volatile uint8_t command_flag = 0; // 1 - new command arrived
 
-// LDR 1 - PA1 and LDR 2 - PB0
+// LDR 1 and LDR 2
 uint16_t adcValues[2];
-uint32_t lastPoll = 0;
-char msg[50];
 
 // Obstacle detection
 uint16_t threshold = 1950;
@@ -110,6 +111,8 @@ uint16_t duckHold = 300; // how long to hold the down key (ms)
 uint32_t lastDarkTime = 0; // last time any LDR saw something dark
 uint16_t gameOverTime = 5000; // both LDRs bright this long = game over (ms)
 
+uint8_t arrowUp[8] = {0x08, 0x0C, 0x0E, 0xFF, 0xFF, 0x0E, 0x0C, 0x08};
+uint8_t arrowDown[8] = {0x10, 0x30, 0x70, 0xFF, 0xFF, 0x70, 0x30, 0x10};
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -122,6 +125,7 @@ static void MX_USART1_UART_Init(void);
 static void MX_IWDG_Init(void);
 static void MX_ADC1_Init(void);
 static void MX_TIM2_Init(void);
+static void MX_SPI1_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -167,6 +171,7 @@ int main(void)
   MX_IWDG_Init();
   MX_ADC1_Init();
   MX_TIM2_Init();
+  MX_SPI1_Init();
   /* USER CODE BEGIN 2 */
 
   HAL_UART_Receive_IT(&huart1, &rxByte, 1);
@@ -176,6 +181,7 @@ int main(void)
   TIM4->CCR4 = duckRest;
 
   ssd1306_Init();
+  MAX7219_Init();
 
   __HAL_DBGMCU_FREEZE_IWDG();
 
@@ -225,6 +231,7 @@ int main(void)
 				  TIM4->CCR3 = jumpPress;
 				  jumpPressed = 1;
 				  jumpTime = HAL_GetTick();
+				  MAX7219_Show(arrowUp);
 
 				  gameRunning = 1;
 				  gameStartTime = HAL_GetTick();
@@ -272,6 +279,7 @@ int main(void)
 			  TIM4->CCR3 = jumpPress;
 			  jumpPressed = 1;
 			  jumpTime = HAL_GetTick();
+			  MAX7219_Show(arrowUp);
 			  jumps++;
 			  updateScreen = 1;
 		  }
@@ -292,6 +300,7 @@ int main(void)
 				  TIM4->CCR4 = duckPress;
 				  duckPressed = 1;
 				  duckTime = HAL_GetTick();
+				  MAX7219_Show(arrowDown);
 				  duckHold = 800; // stay down until the bird has passed
 				  ducks++;
 				  updateScreen = 1;
@@ -316,6 +325,7 @@ int main(void)
 				  TIM4->CCR3 = jumpPress;
 				  jumpPressed = 1;
 				  jumpTime = HAL_GetTick();
+				  MAX7219_Show(arrowUp);
 				  jumps++;
 				  updateScreen = 1;
 			  }
@@ -324,6 +334,7 @@ int main(void)
 				  TIM4->CCR4 = duckPress;
 				  duckPressed = 1;
 				  duckTime = HAL_GetTick();
+				  MAX7219_Show(arrowDown);
 				  duckHold = 300;
 				  ducks++;
 				  updateScreen = 1;
@@ -337,6 +348,7 @@ int main(void)
 	  {
 		  TIM4->CCR3 = jumpRest;
 		  jumpPressed = 0;
+		  MAX7219_Clear();
 	  }
 
 	  // Release duck after duckHold ms
@@ -344,6 +356,7 @@ int main(void)
 	  {
 		  TIM4->CCR4 = duckRest;
 		  duckPressed = 0;
+		  MAX7219_Clear();
 	  }
 
 	  // Redraw the screen
@@ -556,6 +569,44 @@ static void MX_IWDG_Init(void)
 }
 
 /**
+  * @brief SPI1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_SPI1_Init(void)
+{
+
+  /* USER CODE BEGIN SPI1_Init 0 */
+
+  /* USER CODE END SPI1_Init 0 */
+
+  /* USER CODE BEGIN SPI1_Init 1 */
+
+  /* USER CODE END SPI1_Init 1 */
+  /* SPI1 parameter configuration*/
+  hspi1.Instance = SPI1;
+  hspi1.Init.Mode = SPI_MODE_MASTER;
+  hspi1.Init.Direction = SPI_DIRECTION_2LINES;
+  hspi1.Init.DataSize = SPI_DATASIZE_8BIT;
+  hspi1.Init.CLKPolarity = SPI_POLARITY_LOW;
+  hspi1.Init.CLKPhase = SPI_PHASE_1EDGE;
+  hspi1.Init.NSS = SPI_NSS_SOFT;
+  hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_16;
+  hspi1.Init.FirstBit = SPI_FIRSTBIT_MSB;
+  hspi1.Init.TIMode = SPI_TIMODE_DISABLE;
+  hspi1.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
+  hspi1.Init.CRCPolynomial = 10;
+  if (HAL_SPI_Init(&hspi1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN SPI1_Init 2 */
+
+  /* USER CODE END SPI1_Init 2 */
+
+}
+
+/**
   * @brief TIM2 Initialization Function
   * @param None
   * @retval None
@@ -733,6 +784,9 @@ static void MX_GPIO_Init(void)
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
 
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(CS_GPIO_Port, CS_Pin, GPIO_PIN_SET);
+
   /*Configure GPIO pin : LED_Pin */
   GPIO_InitStruct.Pin = LED_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
@@ -745,6 +799,13 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
   GPIO_InitStruct.Pull = GPIO_PULLUP;
   HAL_GPIO_Init(KEY_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : CS_Pin */
+  GPIO_InitStruct.Pin = CS_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(CS_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pin : START_Pin */
   GPIO_InitStruct.Pin = START_Pin;
