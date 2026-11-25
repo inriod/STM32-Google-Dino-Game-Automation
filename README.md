@@ -38,6 +38,12 @@ To develop an autonomous system using the STM32F411CEU6 that detects obstacles i
 - **GPIO / EXTI:** Button input and LED control.
 - **IWDG:** Watchdog.
 
+## Wiring Diagram
+
+![Wiring Diagram](docs/wiring_diagram.png)
+
+Full quality version: [wiring_diagram.pdf](docs/wiring_diagram.pdf)
+
 ## Development
 
 - STM32CubeIDE
