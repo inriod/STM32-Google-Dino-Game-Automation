@@ -142,6 +142,15 @@ sequenceDiagram
     Note over MCU,Servo: after 300 ms, release and clear
 ```
 
+## Game Speed
+
+The game speed increases over time. A timing model based on the game source code was not accurate, because the game rounds the movement every frame and depends on the monitor refresh rate. For the demonstration, the speed is fixed from the browser console (speed 9, at which birds also appear):
+
+```js
+r = Runner.getInstance(); r.config.acceleration = 0; r.config.speed = 9; r.currentSpeed = 9
+```
+
+
 ## System Description
 
 **1. Status LED and mode button.** The onboard LED (PC13) blinks slowly in Auto mode and fast in Guitar mode. The KEY button (PA0) toggles the mode through an external interrupt. Presses closer than 200 ms are ignored as button bounce.
@@ -169,13 +178,5 @@ sequenceDiagram
 ## Power
 
 The board is powered from the ST-Link 3.3V (or USB-C). The servos, the Bluetooth module and the LED matrix are powered from the breadboard power module, whose ground is connected to the board ground. On long breadboards the power rails are split in the middle and must be bridged with wires.
-
-## Game Speed
-
-The game speed increases over time. A timing model based on the game source code was not accurate, because the game rounds the movement every frame and depends on the monitor refresh rate. For the demonstration, the speed is fixed from the browser console (speed 9, at which birds also appear):
-
-```js
-r = Runner.getInstance(); r.config.acceleration = 0; r.config.speed = 9; r.currentSpeed = 9
-```
 
 **Course:** ENGS 251 – Embedded Systems Project
