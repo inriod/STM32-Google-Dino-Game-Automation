@@ -1,5 +1,7 @@
 # STM32 Google Dino Automation
 
+![STM32](https://img.shields.io/badge/MCU-STM32F411-blue) ![Language](https://img.shields.io/badge/language-C-green) ![IDE](https://img.shields.io/badge/IDE-STM32CubeIDE-orange)
+
 ## Project Objective
 To develop an autonomous system using the STM32F411CEU6 that detects obstacles in the Google Chrome Dino game and performs timely jumps and ducks using sensor feedback and servo motor control.
 
@@ -44,7 +46,10 @@ To develop an autonomous system using the STM32F411CEU6 that detects obstacles i
 
 ![Wiring Diagram](docs/wiring_diagram.png)
 
+[!WARNING]
+Power module GND must be connected to board GND. Breadboard power rails are split in the middle.
 Full quality version: [wiring_diagram.pdf](docs/wiring_diagram.pdf)
+
 
 ## Development
 
@@ -143,7 +148,7 @@ sequenceDiagram
 ```
 
 ## Game Speed
-
+[!NOTE]
 The game speed increases over time. A timing model based on the game source code was not accurate, because the game rounds the movement every frame and depends on the monitor refresh rate. For the demonstration, the speed is fixed from the browser console (speed 9, at which birds also appear):
 
 ```js
