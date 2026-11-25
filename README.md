@@ -177,9 +177,11 @@ The onboard LED (PC13) blinks slowly in Auto mode and fast in Guitar mode. The K
 <details>
     <summary><b>2. Servos</b></summary>
 
-TIM4 generates PWM for two servos: PB8 (jump) and PB9 (duck). Prescaler 99 and period 19999 give 50 Hz, so the CCR value equals the pulse width in µs. $$f_{PWM} = \frac{100\ MHz}{(99+1)(19999+1)} = 50\ Hz$$
+TIM4 generates PWM for two servos: PB8 (jump) and PB9 (duck). Prescaler 99 and period 19999 give 50 Hz, so the CCR value equals the pulse width in µs.
+$$f_{PWM} = \frac{100\ MHz}{(99+1)(19999+1)} = 50\ Hz$$
 
-The jump servo presses <kbd>Space</kbd> and the duck servo presses <kbd>↓</kbd>. Each servo moves to the press position and returns after a set time (200 ms for jump, 800 ms for duck in Auto mode). The servos are powered from a separate breadboard power module.
+The jump servo presses <kbd>Space</kbd> and the duck servo presses <kbd>↓</kbd>. 
+Each servo moves to the press position and returns after a set time (200 ms for jump, 800 ms for duck in Auto mode). The servos are powered from a separate breadboard power module.
 </details>
 
 <details>
