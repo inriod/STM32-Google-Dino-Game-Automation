@@ -217,7 +217,9 @@ LDR 1 is placed in front of the dino. An approaching cactus darkens the screen a
 <details>
     <summary><b>8. START button and calibration</b></summary>
 
-The START button (PB12) presses space to start the game, measures the brightness of the empty screen, and sets each threshold 250 below it. This keeps detection reliable under different room light and monitor brightness. A second press stops the round. A single fixed threshold for both sensors was also tested, but it missed fast obstacles, so automatic calibration is used.
+The START button (PB12) presses space to start the game, measures the brightness of the empty screen, and sets each threshold 250 below it. This keeps detection reliable under different room light and monitor brightness. A second press stops the round. A single fixed threshold for both sensors was also tested, but it missed fast obstacles,[^1] so automatic calibration is used.
+
+[^1]: A fast obstacle covers the LDR only for a short time, and the GL5528 needs about 20–30 ms to react, so the reading drops only a little below the background.
 </details>
 
 <details>
