@@ -69,11 +69,13 @@ Full quality version: [wiring_diagram.pdf](docs/wiring_diagram.pdf)
 | 11 | LED matrix action indicator | SPI1 | Done |
 
 ## Sequence Daigram
+
+### Auto mode
 ```mermaid
 sequenceDiagram
     actor User
     participant Screen as Dino game screen
-    participant LDR as LDR A / LDR C
+    participant LDR as LDR 1 / LDR 2
     participant ADC as TIM2 + ADC + DMA
     participant MCU as STM32 main loop
     participant Servo as Jump / Duck servo
@@ -90,7 +92,7 @@ sequenceDiagram
         ADC->>MCU: DMA writes adcValues[2]
     end
 
-    Screen->>LDR: Cactus darkens LDR A
+    Screen->>LDR: Cactus darkens LDR 1
     MCU->>MCU: adcValues[0] < threshold
     MCU->>Servo: Jump servo presses space
     MCU->>Matrix: Show up arrow
@@ -99,7 +101,7 @@ sequenceDiagram
     MCU->>Servo: Release jump servo
     MCU->>Matrix: Clear
 
-    Screen->>LDR: Bird darkens LDR C (LDR A bright)
+    Screen->>LDR: Bird darkens LDR 2 (LDR 1 bright)
     MCU->>Servo: Duck servo holds down arrow
     MCU->>Matrix: Show down arrow
     MCU->>OLED: Ducks + 1
@@ -109,6 +111,35 @@ sequenceDiagram
 
     Note over Screen,MCU: No dark object for 5 s
     MCU->>OLED: "PRESS START" (game over)
+```
+
+### Guitar mode
+```mermaid
+sequenceDiagram
+    actor User
+    participant Guitar as Guitar board
+    participant BT as HC-05 pair (Bluetooth)
+    participant MCU as STM32
+    participant Servo as Jump / Duck servo
+    participant Matrix as MAX7219 (SPI)
+    participant OLED as OLED (I2C)
+
+    User->>MCU: Press KEY (PA0, EXTI)
+    MCU->>OLED: "GUITAR MODE", counters reset
+
+    Guitar->>BT: High note = 'H'
+    BT->>MCU: USART1 RX interrupt (9600 baud)
+    MCU->>Servo: Jump servo presses space
+    MCU->>Matrix: Show up arrow
+    MCU->>OLED: Jumps + 1
+    Note over MCU,Servo: after 200 ms, release and clear
+
+    Guitar->>BT: Low note = 'L'
+    BT->>MCU: USART1 RX interrupt
+    MCU->>Servo: Duck servo holds down arrow
+    MCU->>Matrix: Show down arrow
+    MCU->>OLED: Ducks + 1
+    Note over MCU,Servo: after 300 ms, release and clear
 ```
 
 ## System Description
